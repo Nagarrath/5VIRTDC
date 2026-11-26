@@ -12,11 +12,11 @@ domaine: cybersadiver.lan
 
 # Nœuds : ordre = pve1, pve2, pve3 (le 1er sert de point d'entrée API et de rebond SSH)
 noeuds:
-  - { nom: pve1, ip: 192.168.10.11 }
-  - { nom: pve2, ip: 192.168.10.12 }
-  - { nom: pve3, ip: 192.168.10.13 }
+  - { nom: pve1, ip: 172.19.3.151 }
+  - { nom: pve2, ip: 172.19.3.152 }
+  - { nom: pve3, ip: 172.19.3.153 }
 
-# Nœud qui sert le NFS (index dans la liste noeuds : 2 = pve3)
+# Nœud qui sert le NFS (3e nœud de la liste)
 nfs:
   noeud: pve3
   dataset: rpool/nfs
@@ -26,24 +26,24 @@ nfs:
 # ---------- Réseau de gestion + front (vmbr0) ----------
 front:
   pont: vmbr0
-  cidr: 192.168.10.0/24
-  passerelle: 192.168.10.254
-  dns: 192.168.10.254          # DNS de la salle (amont d'unbound)
+  cidr: 172.19.0.0/16 # adresse du RÉSEAU : en /16, c'est 172.19.0.0 (172.19.3.0/16 est invalide)
+  passerelle: 172.19.3.254
+  dns: 1.1.1.1 # DNS amont d'unbound (et des invités) : à remplacer par le DNS de la salle s'il y en a un
   mtu: 1500
   ntp: fr.pool.ntp.org
-  plage_invites: { debut: 192.168.10.101, fin: 192.168.10.149 }
+  plage_invites: { debut: 172.19.3.101, fin: 172.19.3.149 } # adresses libres à confirmer dans la salle
 
 # Réseau(x) des postes d'administration -> IPSet "management"
 # (OBLIGATOIRE avant l'activation du pare-feu)
 postes_admin:
-  - 192.168.10.0/24
+  - 172.19.0.0/16 # réseau où sont vos PC (ipconfig) : à ajuster s'ils sont ailleurs
 
 # ---------- Réseaux SDN ----------
 back:
   zone: back
   vnet: vback
   vni: 30030
-  cidr: 10.0.30.0/24           # sans passerelle ; MTU = front.mtu - 50 = 1450
+  cidr: 10.0.30.0/24 # sans passerelle ; MTU = front.mtu - 50 = 1450
 
 labo:
   zone: labo
@@ -53,22 +53,27 @@ labo:
   dhcp: { debut: 10.0.99.100, fin: 10.0.99.150 }
 
 # ---------- Stockage ----------
-stockage: local-zfs             # disques des invités
-lxc_template: debian-13-standard_13.1-2_amd64.tar.zst   # à vérifier : pveam available
+stockage: local-zfs # disques des invités
+lxc_template: debian-13-standard_13.1-2_amd64.tar.zst # à vérifier : pveam available
 
 # ---------- Invités ----------
 # cs-dns et cs-web prennent les deux premières adresses de la plage des invités
 invites:
-  cs_dns: 192.168.10.101
-  cs_web: 192.168.10.102
+  cs_dns: 172.19.3.101
+  cs_web: 172.19.3.102
   cs_web_back: 10.0.30.102
   cs_bdd: 10.0.30.103
 
 # ---------- Comptes ----------
 # Un compte prenom@pve par administrateur (minuscules, sans accent)
 admins:
-  - prenom1
-  - prenom2
+  - axeli
+  - axelp
+  - bryan
+  - enzo
+  - gauthier
+  - idriss
+  - matheo
 
 # ---------- Clés SSH (chemins sur le poste qui lance les outils, PAS les clés) ----------
 cle_ssh_privee: ~/.ssh/id_ed25519

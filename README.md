@@ -73,9 +73,9 @@ tofu -chdir=40-services init
 1. **À la main** : installer Proxmox VE 9 sur les 3 nœuds (choix du TP1).
 2. **À la main** : copier la clé SSH.
    ```bash
-   ssh-copy-id root@192.168.10.11
-   ssh-copy-id root@192.168.10.12
-   ssh-copy-id root@192.168.10.13
+   ssh-copy-id root@<ip pve1>      # adresses dans fiche.yml
+   ssh-copy-id root@<ip pve2>
+   ssh-copy-id root@<ip pve3>
    ```
 3. Couche 00, **deux fois** (le 2e passage doit afficher `changed=0`) :
    ```bash
@@ -83,9 +83,9 @@ tofu -chdir=40-services init
    ```
 4. **Redémarrer les 3 nœuds** (nouveau noyau possible), **puis** créer le cluster à la main :
    ```bash
-   root@pve1:~# pvecm create pve-cyber --link0 192.168.10.11
-   root@pve2:~# pvecm add 192.168.10.11 --link0 192.168.10.12
-   root@pve3:~# pvecm add 192.168.10.11 --link0 192.168.10.13
+   root@pve1:~# pvecm create pve-cyber --link0 <ip pve1>
+   root@pve2:~# pvecm add <ip pve1> --link0 <ip pve2>
+   root@pve3:~# pvecm add <ip pve1> --link0 <ip pve3>
    root@pve1:~# pvecm status        # Quorate: Yes, 3 votes
    ```
 
@@ -99,10 +99,21 @@ tofu -chdir=10-amorcage apply
 ```bash
 export PROXMOX_VE_API_TOKEN="$(tofu -chdir=10-amorcage output -raw jeton_tofu)"
 export PROXMOX_TOKEN_SECRET="$(tofu -chdir=10-amorcage output -raw secret_ansible)"
-export PROXMOX_URL="https://192.168.10.11:8006"
+export PROXMOX_URL="https://<ip pve1>:8006"
 export TF_VAR_mot_de_passe_console='…'
 unset PROXMOX_VE_PASSWORD
 ```
+
+### Sous Windows (PowerShell) — OpenTofu seulement
+```powershell
+$env:PROXMOX_VE_PASSWORD = '…'                                           # couche 10 seulement
+tofu -chdir=10-amorcage apply
+$env:PROXMOX_VE_API_TOKEN = tofu -chdir=10-amorcage output -raw jeton_tofu
+$env:PROXMOX_TOKEN_SECRET = tofu -chdir=10-amorcage output -raw secret_ansible
+$env:PROXMOX_URL = "https://<ip pve1>:8006"
+Remove-Item Env:PROXMOX_VE_PASSWORD
+```
+Ansible ne tourne pas sous Windows : les couches 00 et 50 se lancent depuis un poste Linux, macOS ou WSL.
 
 ### 4.4 Étapes 3 à 6 — Socle, image, services
 ```bash
