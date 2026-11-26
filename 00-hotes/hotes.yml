@@ -1,0 +1,25 @@
+- name: Désactiver les dépôts entreprise
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/apt/sources.list.d/pve-enterprise.sources
+        - /etc/apt/sources.list.d/pve-enterprise.list
+        - /etc/apt/sources.list.d/ceph.sources
+
+    - name: Activer le dépôt pve-no-subscription (format deb822)
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/proxmox.sources
+        mode: "0644"
+        content: |
+          Types: deb
+          URIs: http://download.proxmox.com/debian/pve
+          Suites: trixie
+          Components: pve-no-subscription
+          Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+
+    - name: Mettre à jour les paquets
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+        cache_valid_time: 3600
