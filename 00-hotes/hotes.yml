@@ -1,0 +1,162 @@
+---
+# 00-hotes/hotes.yml — étape 1 : configuration des trois nœuds Proxmox VE.
+# Lancer DEUX fois depuis ce dossier : le 2e passage doit afficher changed=0.
+#   cd 00-hotes && ansible-playbook hotes.yml
+# Toutes les valeurs viennent de ../fiche.yml (aucune IP écrite ici).
+
+# ---------- Play 1 : inventaire construit à partir de la fiche ----------
+- name: Construire l'inventaire à partir de la fiche
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files: [../fiche.yml]
+  tasks:
+    - name: Ajouter les nœuds
+      ansible.builtin.add_host:
+        name: "{{ item.nom }}"
+        groups: "{{ ['noeuds'] + (['nfs'] if item.nom == nfs.noeud else []) }}"
+        ansible_host: "{{ item.ip }}"
+        ansible_user: root
+        ansible_ssh_private_key_file: "{{ cle_ssh_privee }}"
+      loop: "{{ noeuds }}"
+      changed_when: false
+
+# ---------- Play 2 : système des trois nœuds ----------
+- name: Configurer les nœuds
+  hosts: noeuds
+  vars_files: [../fiche.yml]
+  tasks:
+    # --- Dépôts (format deb822) ---
+    - name: Dépôt entreprise PVE désactivé
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/pve-enterprise.sources
+        mode: "0644"
+        content: |
+          Types: deb
+          URIs: https://enterprise.proxmox.com/debian/pve
+          Suites: trixie
+          Components: pve-enterprise
+          Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+          Enabled: no
+
+    - name: Dépôt entreprise Ceph désactivé
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/ceph.sources
+        mode: "0644"
+        content: |
+          Types: deb
+          URIs: https://enterprise.proxmox.com/debian/ceph-squid
+          Suites: trixie
+          Components: enterprise
+          Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+          Enabled: no
+
+    - name: Dépôt no-subscription
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/proxmox.sources
+        mode: "0644"
+        content: |
+          Types: deb
+          URIs: http://download.proxmox.com/debian/pve
+          Suites: trixie
+          Components: pve-no-subscription
+          Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+
+    - name: Paquets à jour
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+
+    # --- Heure ---
+    - name: Paquet chrony
+      ansible.builtin.apt:
+        name: chrony
+        state: present
+
+    - name: Chrony sur {{ front.ntp }}
+      ansible.builtin.lineinfile:
+        path: /etc/chrony/chrony.conf
+        regexp: '^(pool|server)\s'
+        line: "pool {{ front.ntp }} iburst"
+        insertbefore: BOF
+      notify: Redémarrer chrony
+
+    # --- Noms ---
+    - name: Les trois nœuds se connaissent par leur nom (court et complet)
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^{{ item.ip | regex_escape }}\s'
+        line: "{{ item.ip }} {{ item.nom }}.{{ domaine }} {{ item.nom }}"
+      loop: "{{ noeuds }}"
+
+    # --- dnsmasq (utilisé par le SDN pour la zone labo) ---
+    - name: Paquet dnsmasq
+      ansible.builtin.apt:
+        name: dnsmasq
+        state: present
+
+    - name: Service dnsmasq par défaut arrêté et désactivé
+      ansible.builtin.systemd:
+        name: dnsmasq
+        enabled: false
+        state: stopped
+
+  handlers:
+    - name: Redémarrer chrony
+      ansible.builtin.systemd:
+        name: chrony
+        state: restarted
+
+# ---------- Play 3 : serveur NFS sur le nœud désigné par la fiche ----------
+- name: Serveur NFS
+  hosts: nfs
+  vars_files: [../fiche.yml]
+  tasks:
+    - name: Jeu de données ZFS {{ nfs.dataset }}
+      ansible.builtin.command: zfs create {{ nfs.dataset }}
+      args:
+        creates: "{{ nfs.chemin }}"
+
+    - name: Paquet nfs-kernel-server
+      ansible.builtin.apt:
+        name: nfs-kernel-server
+        state: present
+
+    - name: Export vers le réseau de gestion seulement
+      ansible.builtin.lineinfile:
+        path: /etc/exports
+        regexp: '^{{ nfs.chemin | regex_escape }}\s'
+        line: "{{ nfs.chemin }} {{ front.cidr }}(rw,sync,no_subtree_check,no_root_squash)"
+      notify: Recharger les exports
+
+    - name: Service NFS activé et démarré
+      ansible.builtin.systemd:
+        name: nfs-server
+        enabled: true
+        state: started
+
+    # Vendor data Cloud-Init (agent QEMU des clones, étape 4).
+    # L'API Proxmox ne sait pas déposer un snippet : c'est Ansible qui le fait,
+    # directement dans le dossier qui deviendra le contenu « snippets » de cs-nfs.
+    - name: Dossier snippets du partage
+      ansible.builtin.file:
+        path: "{{ nfs.chemin }}/snippets"
+        state: directory
+        mode: "0755"
+
+    - name: Vendor data Cloud-Init (agent QEMU)
+      ansible.builtin.copy:
+        dest: "{{ nfs.chemin }}/snippets/vendor-agent.yml"
+        mode: "0644"
+        content: |
+          #cloud-config
+          package_update: true
+          packages:
+            - qemu-guest-agent
+          runcmd:
+            - systemctl enable --now qemu-guest-agent
+
+  handlers:
+    - name: Recharger les exports
+      ansible.builtin.command: exportfs -ra
+      changed_when: true

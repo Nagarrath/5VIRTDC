@@ -6,6 +6,26 @@ Ce dépôt reconstruit le cluster Proxmox VE `pve-cyber` de CyberSadiver à part
 
 ---
 
+## 0. Avancement (mis à jour le 26/11)
+
+| Étape | Contenu | État |
+|---|---|---|
+| 0 — Dépôt | Couches, `fiche.exemple.yml`, `.gitignore`, README, verrous du provider (`.terraform.lock.hcl`) | ✅ Fait — reste : coffre `50-config/secrets.yml` (ansible-vault) et captures du Contrôle 0 |
+| 1 — Nœuds | Réinstallation PVE 9, clé SSH, `00-hotes/hotes.yml`, création du cluster | 🟡 `hotes.yml` écrit (dépôts, mises à jour, chrony, /etc/hosts, dnsmasq, NFS, snippet agent QEMU) — à lancer deux fois ; cluster en cours de création |
+| 2 — Amorçage | `10-amorcage/main.tf` et `outputs.tf` : rôle CS-Tofu, comptes et jetons `tofu` et `ansible` | 🟡 Code écrit et validé (`tofu validate`) — `apply` à lancer une fois le cluster créé |
+| 3 — Socle | Stockage cs-nfs, SDN back et labo, droits, pare-feu | ⬜ À faire |
+| 4 — Image | Image Debian 13, modèle 900 (le snippet `vendor-agent.yml` est déjà déposé par `hotes.yml`) | ⬜ À faire |
+| 5 — Modules | `modules/vm`, `modules/ct` avec validations | ⬜ À faire |
+| 6 — Services | cs-dns, cs-web, cs-bdd, sauvegarde, réplication, HA | ⬜ À faire |
+| 7 — Configuration | Inventaire dynamique, rebond SSH, rôles unbound, web, mariadb | ⬜ À faire |
+| 8 — Dérive et reconstruction | Démonstration et chronométrage | ⬜ À faire |
+
+**Postes utilisés :** OpenTofu tourne sous Windows (poste du pilote, qui garde les fichiers `*.tfstate`). Ansible tourne sur un poste Linux/WSL d'un membre du groupe (Ansible ne fonctionne pas sous Windows).
+
+**Écarts avec le dossier du TP1 :** le réseau de gestion et front est `172.19.0.0/16` (nœuds en `172.19.3.151` à `.153`, passerelle `172.19.3.254`) au lieu de `192.168.10.0/24`. Masque, DNS (`1.1.1.1`) et adresses des invités (`172.19.3.101`, `.102`) à confirmer.
+
+---
+
 ## 1. Prérequis (poste qui lance les outils)
 
 | Outil | Version | Vérifier |
