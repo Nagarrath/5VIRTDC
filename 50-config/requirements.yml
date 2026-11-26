@@ -1,0 +1,4 @@
+# ansible-galaxy collection install -r 50-config/requirements.yml
+collections:
+  - name: community.proxmox   # inventaire dynamique (plugin community.proxmox.proxmox)
+  - name: community.mysql     # base intranet et utilisateur web

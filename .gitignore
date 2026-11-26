@@ -1,0 +1,35 @@
+# ===== Valeurs réelles du cluster et secrets =====
+fiche.yml
+*.tfvars
+!*.exemple.tfvars
+.env
+.env.*
+
+# ===== États et caches OpenTofu =====
+# (le fichier .terraform.lock.hcl, lui, est versionné : il fige la version du provider)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+debug.log
+
+# ===== Ansible =====
+50-config/.ssh_config
+*.retry
+# mot de passe du coffre ansible-vault (le fichier secrets.yml chiffré, lui, est versionné)
+.vault_pass*
+vault_pass*
+
+# ===== Clés =====
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+!*.pub
+
+# ===== Divers =====
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

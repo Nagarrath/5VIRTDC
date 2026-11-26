@@ -1,0 +1,2 @@
+# Toutes les connexions passent par le fichier SSH généré (rebond par pve1)
+ansible_ssh_common_args: "-F {{ playbook_dir }}/.ssh_config"
